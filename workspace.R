@@ -17,12 +17,25 @@ schedule |> names()
 # read in .csv file of data from Kenpom (download on Kenpom homepage)
 kenpom_data <- read_csv("summary26.csv")
 
+# read in .csv file of data from barttorvik
+torvik_data <- read_csv("2026_team_results.csv")
+
+# view variable names in the schedule data frame
+torvik_data |> names()
+
 # create data frame to specifically view names in kenpom_data data frame
 kenpom_names <- kenpom_data |> 
   select(TeamName) |> 
   arrange(TeamName)
 
 View(kenpom_names)
+
+# create data frame to specifically view names in torvik_data data frame
+torvik_names <- torvik_data |> 
+  select(team) |> 
+  arrange(team)
+
+View(torvik_names)
 
 # create data frame to specifically view names in schedule data frame
 schedule_names <- schedule |> 
@@ -45,6 +58,56 @@ kenpom_names <- kenpom_names |>
 # change Kenpom names to not include periods (for the actual data)
 kenpom_data <- kenpom_data |> 
   mutate(TeamName = str_replace_all(TeamName, "\\.", ""))
+
+# change Torvik names to not include periods
+torvik_names <- torvik_names |> 
+  mutate(team = str_replace_all(team, "\\.", ""))
+
+# change Torvik names to not include periods (for the actual data)
+torvik_data <- torvik_data |> 
+  mutate(team = str_replace_all(team, "\\.", ""))
+
+# define differences in team names between KenPom and Torvik
+team_aliases_torvik <- tribble(
+  ~kenpom_name,                           ~torvik_name,
+  "CSUN",                                 "Cal St Northridge",
+  "Kansas City",                          "UMKC",
+  "Southeast Missouri",                   "Southeast Missouri St",
+  "Nicholls",                             "Nicholls St",
+  "SIUE",                                 "SIU Edwardsville",
+  "McNeese",                              "McNeese St"
+)
+
+# clean the team names for the Torvik data to match KenPom and only select relevant variables
+torvik_clean <- torvik_data |> 
+  left_join(team_aliases_torvik, by = c("team" = "torvik_name")) |>
+  mutate(team = coalesce(kenpom_name, team)) |> 
+  select(
+    team,
+    adjoe,
+    adjde,
+    barthag
+  )
+
+# combine the home team stats with their Kenpom adjusted tempo, offensive efficiency, defensive efficiency, and efficiency margin
+combined_metric_stats <- kenpom_data |> 
+  left_join(torvik_clean, by = c("TeamName" = "team")) |> 
+  rename(
+    "torvik_oe" = "adjoe",
+    "torvik_de" = "adjde"
+  ) |> 
+  select(
+    TeamName, 
+    AdjOE, 
+    AdjDE, 
+    AdjEM, 
+    AdjTempo, 
+    torvik_oe,
+    torvik_de,
+    barthag
+  )
+
+View(combined_metric_stats)
 
 # define differences in team names between KenPom and ESPN
 team_aliases <- tribble(
@@ -139,18 +202,35 @@ home_clean <- schedule |>
          home_score > 0) |> 
   left_join(team_aliases, by = c("home_short_display_name" = "espn_name")) |>
   mutate(home_short_display_name = coalesce(kenpom_name, home_short_display_name)) |>
-  select(game_id, date, home_short_display_name, home_score, conference_competition)
+  select(game_id, 
+         date, 
+         home_short_display_name, 
+         home_score, 
+         conference_competition
+       )
 
 # combine the home team stats with their Kenpom adjusted tempo, offensive efficiency, defensive efficiency, and efficiency margin
 home_combined_stats <- home_clean |> 
-  left_join(kenpom_data, by = c("home_short_display_name" = "TeamName")) |> 
+  left_join(combined_metric_stats, by = c("home_short_display_name" = "TeamName")) |> 
   rename(
     "home_adj_tempo" = "AdjTempo",
     "home_adj_off" = "AdjOE",
     "home_adj_def" = "AdjDE",
-    "home_adj_em" = "AdjEM"
+    "home_adj_em" = "AdjEM",
+    "home_torvik_off" = "torvik_oe",
+    "home_torvik_def" = "torvik_de",
+    "home_barthag" = "barthag"
   ) |> 
-  select(game_id, home_short_display_name, home_score, home_adj_tempo, home_adj_off, home_adj_def, home_adj_em)
+  select(game_id, 
+         home_short_display_name, 
+         home_score, home_adj_tempo, 
+         home_adj_off, 
+         home_adj_def, 
+         home_adj_em, 
+         home_torvik_off, 
+         home_torvik_def, 
+         home_barthag
+      )
   
 # clean the team names for the away team data
 away_clean <- schedule |>
@@ -159,18 +239,36 @@ away_clean <- schedule |>
         away_score > 0) |> 
   left_join(team_aliases, by = c("away_short_display_name" = "espn_name")) |>
   mutate(away_short_display_name = coalesce(kenpom_name, away_short_display_name)) |>
-  select(game_id, date, away_short_display_name, away_score, conference_competition)
+  select(game_id, 
+         date, 
+         away_short_display_name, 
+         away_score, 
+         conference_competition
+       )
 
 # combine the away team stats with their Kenpom adjusted tempo, offensive efficiency, defensive efficiency, and efficiency margin
 away_combined_stats <- away_clean |> 
-  left_join(kenpom_data, by = c("away_short_display_name" = "TeamName")) |> 
+  left_join(combined_metric_stats, by = c("away_short_display_name" = "TeamName")) |> 
   rename(
     "away_adj_tempo" = "AdjTempo",
     "away_adj_off" = "AdjOE",
     "away_adj_def" = "AdjDE",
-    "away_adj_em" = "AdjEM"
+    "away_adj_em" = "AdjEM",
+    "away_torvik_off" = "torvik_oe",
+    "away_torvik_def" = "torvik_de",
+    "away_barthag" = "barthag"
   ) |> 
-  select(game_id, away_short_display_name, away_score, away_adj_tempo, away_adj_off, away_adj_def, away_adj_em)
+  select(game_id, 
+         away_short_display_name, 
+         away_score, 
+         away_adj_tempo, 
+         away_adj_off, 
+         away_adj_def, 
+         away_adj_em,
+         away_torvik_off,
+         away_torvik_def,
+         away_barthag
+       )
 
 # combine the home and away stats to create the final data set for analysis
 combined_stats <- home_combined_stats |> 
@@ -563,16 +661,19 @@ rbind(
     collect_metrics() |> 
     mutate(Model = "RAND FOR", .before = ".metric")
 )
+# LASSO and MLR are our two best models (LASSO current MAE of 7.84, MLR of 7.86)
 
 
 # fit our MLR model to the entire data set
 final_model <- mlr_workflow_1 |> 
   fit(combined_stats)
 
-# view our entire final model
-tidy(final_model) |> print(n = 100)
+# fit our LASSO model to the entire data set
+final_model_LASSO <- LASSO_final_wkf |>
+  fit(combined_stats)
 
-0.418*126.7 - 0.36*123.7 - 0.397*91.1 + 0.331*102.1 + 0.0172*65.9 + 0.0109*68.1
+# view our entire final model
+tidy(final_model)
 
 # numbers for UNC @ Duke
 unc_vs_duke <- tibble(
@@ -598,49 +699,71 @@ duke_vs_unc <- tibble(
   home_adj_em = 21.61
 )
 
-# tibble where you can read in the kenpom value for teams to then put in the model to predict
-game_prediction <- tibble(
-  home_adj_off   = combined_stats |> 
-    filter(home_short_display_name == "NC State") |> 
-    select(home_adj_off) |> 
-    slice(1) |> 
-    pull(),
-  home_adj_def   = combined_stats |> 
-    filter(home_short_display_name == "NC State") |> 
-    select(home_adj_def) |> 
-    slice(1) |> 
-    pull(),
-  home_adj_tempo = combined_stats |> 
-    filter(home_short_display_name == "NC State") |> 
-    select(home_adj_tempo) |> 
-    slice(1) |> 
-    pull(),
-  home_adj_em = combined_stats |> 
-    filter(home_short_display_name == "NC State") |> 
-    select(home_adj_em) |> 
-    slice(1) |> 
-    pull(),
-  away_adj_off   = combined_stats |> 
-    filter(away_short_display_name == "Virginia Tech") |> 
-    select(away_adj_off) |> 
-    slice(1) |> 
-    pull(),
-  away_adj_def   =  combined_stats |> 
-    filter(away_short_display_name == "Virginia Tech") |> 
-    select(away_adj_def) |> 
-    slice(1) |> 
-    pull(),
-  away_adj_tempo =  combined_stats |> 
-    filter(away_short_display_name == "Virginia Tech") |> 
-    select(away_adj_tempo) |> 
-    slice(1) |> 
-    pull(),
-  away_adj_em =  combined_stats |> 
-    filter(away_short_display_name == "Virginia Tech") |> 
-    select(away_adj_em) |> 
-    slice(1) |> 
-    pull()
-)
+# function to create tibble where you can read in the kenpom value for teams to then put in the model to predict
+predict_teams <- function(home_team, away_team){
+  predict_tibble <- tibble(
+    home_adj_off   = combined_stats |> 
+      filter(home_short_display_name == home_team) |> 
+      select(home_adj_off) |> 
+      slice(1) |> 
+      pull(),
+    home_adj_def   = combined_stats |> 
+      filter(home_short_display_name == home_team) |> 
+      select(home_adj_def) |> 
+      slice(1) |> 
+      pull(),
+    home_adj_tempo = combined_stats |> 
+      filter(home_short_display_name == home_team) |> 
+      select(home_adj_tempo) |> 
+      slice(1) |> 
+      pull(),
+    home_adj_em = combined_stats |> 
+      filter(home_short_display_name == home_team) |> 
+      select(home_adj_em) |> 
+      slice(1) |> 
+      pull(),
+    away_adj_off   = combined_stats |> 
+      filter(away_short_display_name == away_team) |> 
+      select(away_adj_off) |> 
+      slice(1) |> 
+      pull(),
+    away_adj_def   =  combined_stats |> 
+      filter(away_short_display_name == away_team) |> 
+      select(away_adj_def) |> 
+      slice(1) |> 
+      pull(),
+    away_adj_tempo =  combined_stats |> 
+      filter(away_short_display_name == away_team) |> 
+      select(away_adj_tempo) |> 
+      slice(1) |> 
+      pull(),
+    away_adj_em =  combined_stats |> 
+      filter(away_short_display_name == away_team) |> 
+      select(away_adj_em) |> 
+      slice(1) |> 
+      pull()
+  )
+  
+  return(predict_tibble)
+}
+
+predict_teams("NC State", "Virginia Tech")
+
 
 # predict the final point spread(home team - away team) of games
-predict(final_model, new_data = game_prediction)
+predict(final_model, new_data = predict_teams("NC State", "Virginia Tech"))
+
+predict(final_model_LASSO, new_data = predict_teams("Louisville", "Baylor"))
+
+predict(final_model_LASSO, new_data = predict_teams("Baylor", "Louisville"))
+
+# Michigan-Duke is at neutral site, so take mean of average of if Duke was at home and if Michigan was at home
+mean(c(2.32, -3.95))
+
+# Virginia-Ohio State is at neutral site, so take mean of average of if Virginia was at home and if Ohio State was at home
+mean(c(7.80, 2.09))
+
+# Louisville-Baylor is at neutral site, so take mean of average of if Louisville was at home and if Baylor was at home
+mean(c(9.89, 3.93))
+
+
