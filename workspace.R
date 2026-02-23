@@ -368,7 +368,7 @@ mlr_recipe_2 |>
   prep(training = train_data) |> 
   bake(train_data)
 
-# names of variables in recipe 1
+# names of variables in recipe 2
 mlr_recipe_2  |> 
   prep(training = train_data) |> 
   bake(train_data) |> 
@@ -384,22 +384,72 @@ mlr_recipe_3 |>
   prep(training = train_data) |> 
   bake(train_data)
 
-# names of variables in recipe 1
+# names of variables in recipe 3
 mlr_recipe_3  |> 
   prep(training = train_data) |> 
   bake(train_data) |> 
   names()
 
-# fourth recipe (don't normalize): 
-mlr_recipe_4 <- recipe(point_spread ~  home_adj_off + home_adj_def + away_adj_off + away_adj_def + home_adj_tempo + away_adj_tempo, data = train_data)
+# fourth recipe (include all torvik data as well): 
+mlr_recipe_4 <- recipe(point_spread ~  home_adj_off + home_adj_def + away_adj_off + away_adj_def + home_adj_tempo + away_adj_tempo + home_torvik_off + home_torvik_off + away_torvik_off + away_torvik_off + home_barthag + away_barthag, data = train_data) |> 
+  # normalize all numeric variables
+  step_normalize(all_numeric_predictors())
 
 # view results
 mlr_recipe_4 |> 
   prep(training = train_data) |> 
   bake(train_data)
 
-# names of variables in recipe 1
+# names of variables in recipe 5
 mlr_recipe_4  |> 
+  prep(training = train_data) |> 
+  bake(train_data) |> 
+  names()
+
+# fifth recipe (include just barthag from torvik): 
+mlr_recipe_5 <- recipe(point_spread ~  home_adj_off + home_adj_def + away_adj_off + away_adj_def + home_adj_tempo + away_adj_tempo + home_torvik_off + home_torvik_off + away_torvik_off + away_torvik_off + home_barthag + away_barthag, data = train_data) |> 
+  # normalize all numeric variables
+  step_normalize(all_numeric_predictors())
+
+# view results
+mlr_recipe_5 |> 
+  prep(training = train_data) |> 
+  bake(train_data)
+
+# names of variables in recipe 5
+mlr_recipe_5  |> 
+  prep(training = train_data) |> 
+  bake(train_data) |> 
+  names()
+
+# sixth recipe (include just torvik data, not kenpom except for pace): 
+mlr_recipe_6 <- recipe(point_spread ~  home_torvik_off + home_torvik_off + away_torvik_off + away_torvik_off + home_barthag + away_barthag  + home_adj_tempo + away_adj_tempo, data = train_data) |> 
+  # normalize all numeric variables
+  step_normalize(all_numeric_predictors())
+
+# view results
+mlr_recipe_6 |> 
+  prep(training = train_data) |> 
+  bake(train_data)
+
+# names of variables in recipe 6
+mlr_recipe_6  |> 
+  prep(training = train_data) |> 
+  bake(train_data) |> 
+  names()
+
+# sixth recipe (include just torvik data, not kenpom, not even pace): 
+mlr_recipe_7 <- recipe(point_spread ~  home_torvik_off + home_torvik_off + away_torvik_off + away_torvik_off + home_barthag + away_barthag  + home_adj_tempo + away_adj_tempo, data = train_data) |> 
+  # normalize all numeric variables
+  step_normalize(all_numeric_predictors())
+
+# view results
+mlr_recipe_7 |> 
+  prep(training = train_data) |> 
+  bake(train_data)
+
+# names of variables in recipe 7
+mlr_recipe_7  |> 
   prep(training = train_data) |> 
   bake(train_data) |> 
   names()
@@ -432,6 +482,21 @@ mlr_workflow_4 <- workflow() |>
   add_model(mlr_mod)
 mlr_workflow_4
 
+mlr_workflow_5 <- workflow() |>
+  add_recipe(mlr_recipe_5) |>
+  add_model(mlr_mod)
+mlr_workflow_5
+
+mlr_workflow_6 <- workflow() |>
+  add_recipe(mlr_recipe_6) |>
+  add_model(mlr_mod)
+mlr_workflow_6
+
+mlr_workflow_7 <- workflow() |>
+  add_recipe(mlr_recipe_7) |>
+  add_model(mlr_mod)
+mlr_workflow_7
+
 # use a 10 fold CV in the training set
 data_10_fold <- vfold_cv(train_data, 10)
 
@@ -451,11 +516,27 @@ mlr_CV_fits_3 <- mlr_workflow_3 |>
 mlr_CV_fits_4 <- mlr_workflow_4 |>
   fit_resamples(data_10_fold)
 
+# get the metrics for the 10 CV fit on recipe 5
+mlr_CV_fits_5 <- mlr_workflow_5 |>
+  fit_resamples(data_10_fold)
+
+# get the metrics for the 10 CV fit on recipe 6
+mlr_CV_fits_6 <- mlr_workflow_6 |>
+  fit_resamples(data_10_fold)
+
+# get the metrics for the 10 CV fit on recipe 7
+mlr_CV_fits_7 <- mlr_workflow_7 |>
+  fit_resamples(data_10_fold)
+
 # view the metrics from the three models
 rbind(mlr_CV_fits_1 |> collect_metrics(), 
       mlr_CV_fits_2 |> collect_metrics(), 
       mlr_CV_fits_3 |> collect_metrics(),
-      mlr_CV_fits_4 |> collect_metrics())
+      mlr_CV_fits_4 |> collect_metrics(),
+      mlr_CV_fits_5 |> collect_metrics(),
+      mlr_CV_fits_6 |> collect_metrics(),
+      mlr_CV_fits_7 |> collect_metrics()
+    )
 
 
 # fit the model from recipe 1
