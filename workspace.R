@@ -743,6 +743,7 @@ rbind(
     mutate(Model = "RAND FOR", .before = ".metric")
 )
 # LASSO and MLR are our two best models (LASSO current MAE of 7.84, MLR of 7.86)
+# update on 2/23/26: LASSO and MLR are our two best models (LASSO current MAE of 8.40, MLR of 8.41)
 
 
 # fit our MLR model to the entire data set
@@ -828,15 +829,17 @@ predict_teams <- function(home_team, away_team){
   return(predict_tibble)
 }
 
-predict_teams("NC State", "Virginia Tech")
+predict_teams("Notre Dame", "Duke")
 
 
 # predict the final point spread(home team - away team) of games
+predict(final_model_LASSO, new_data = predict_teams("Clemson", "Georgia Tech"))
+
+# can also use the MLR model, but I used the LASSO for my final submission
 predict(final_model, new_data = predict_teams("NC State", "Virginia Tech"))
 
-predict(final_model_LASSO, new_data = predict_teams("Louisville", "Baylor"))
 
-predict(final_model_LASSO, new_data = predict_teams("Baylor", "Louisville"))
+
 
 # Michigan-Duke is at neutral site, so take mean of average of if Duke was at home and if Michigan was at home
 mean(c(2.32, -3.95))
